@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+
+package normalizer;
+
+
+message NormalizerResponse {
+  string title = 1;
+}
+
+message NormalizerRequest {
+  string title = 1;
+}
+
+service NormalizerHandler {
+  rpc normalize (NormalizerRequest) returns (NormalizerResponse) {}
+}
