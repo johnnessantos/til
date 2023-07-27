@@ -2,17 +2,20 @@ package com.indexer.apiindexer.repositories;
 
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
 import co.elastic.clients.elasticsearch._types.ElasticsearchException;
+import co.elastic.clients.elasticsearch.core.GetResponse;
 import co.elastic.clients.elasticsearch.core.IndexRequest;
 import co.elastic.clients.elasticsearch.core.IndexResponse;
 import co.elastic.clients.elasticsearch.core.SearchResponse;
 import co.elastic.clients.elasticsearch.core.search.Hit;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.indexer.apiindexer.models.Product;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import com.indexer.apiindexer.configs.ElasticSearchConfig;
 
+import javax.swing.text.html.Option;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Optional;
@@ -20,16 +23,16 @@ import java.util.Optional;
 @Component
 @AllArgsConstructor
 @Slf4j
-public class ProductElasticRepository {
+public class ProductElasticRepository implements ElasticSearch<Product> {
+
     private final ElasticsearchClient esClient = new ElasticSearchConfig().getESClient();
     private final ObjectMapper mapper;
+    private final String INDEX_NAME = "products";
 
-    public boolean createProduct(Product product) {
-        final String uuid = product.getUuid();
+    @Override
+    public boolean create(final String uuid, final Product product) {
         IndexRequest<Product> request = IndexRequest.of(i -> i
-                .index("products")
-                .id(product.getUuid())
-                .document(product)
+                .index(this.INDEX_NAME).id(uuid).document(product)
         );
 
         try{
@@ -42,27 +45,22 @@ public class ProductElasticRepository {
         return false;
     }
 
-    public Optional<Product> getProduct(final String uuid) {
-        ArrayList<Product> products = new ArrayList<>();
+    @Override
+    public Optional<Product> get(final String uuid) {
         try {
-            SearchResponse<Product> response = this.esClient.search(s -> s
-                            .index("products")
-                            .query(q -> q
-                                    .term(t -> t
-                                            .field("uuid")
-                                            .value(v -> v.stringValue(uuid))
-                                    )),
-                    Product.class
+            GetResponse<ObjectNode> response = this.esClient.get(g -> g
+                            .index(this.INDEX_NAME)
+                            .id(uuid),
+                    ObjectNode.class
             );
-            for (Hit<Product> hit: response.hits().hits()) {
-                products.add(hit.source());
+            if(response.found()) {
+                return Optional.ofNullable(
+                        mapper.readValue(response.source().toString(), Product.class)
+                );
             }
         } catch (ElasticsearchException | IOException ex) {
             log.error("Failed get uuid:{} error:{}", uuid, ex.getMessage());
-            return Optional.empty();
         }
-
-        if(products.isEmpty()) return Optional.empty();
-        return Optional.ofNullable(products.get(0));
+        return Optional.empty();
     }
 }

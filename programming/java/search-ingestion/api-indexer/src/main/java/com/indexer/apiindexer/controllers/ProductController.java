@@ -28,7 +28,7 @@ public class ProductController {
     }
     @GetMapping(value = "/{uuid}", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<ProductResponseDTO> getByUUID(@PathVariable("uuid") String uuid) {
-        final Optional<Product> data = this.productElasticRepository.getProduct(uuid);
+        final Optional<Product> data = this.productElasticRepository.get(uuid);
         if(data.isEmpty()) {
             log.info("Product uuid:{} not found", uuid);
             return new ResponseEntity(HttpStatus.NOT_FOUND);
@@ -46,7 +46,7 @@ public class ProductController {
         final String uuid = UUID.randomUUID().toString();
         log.info("Creating product uuid:{} with data:{}", uuid, data.toString());
         final Product product = new Product(uuid, data.getTitle(), data.getDescription());
-        final boolean success = this.productElasticRepository.createProduct(product);
+        final boolean success = this.productElasticRepository.create(uuid, product);
         if(success)
             return new ResponseEntity<>(this.convertProductModelToResponseDto(product), HttpStatus.CREATED);
         return new ResponseEntity(HttpStatus.BAD_GATEWAY);
