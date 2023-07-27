@@ -2,8 +2,8 @@ package com.indexer.apiindexer.repositories;
 
 import java.util.Optional;
 
-public interface ElasticSearch {
-    boolean create(final String uuid, final String document);
+public interface ElasticSearch<T> {
+    boolean create(final String uuid, final T document);
 
-    Optional<String> get(final String uuid);
+    Optional<T> get(final String uuid);
 }
