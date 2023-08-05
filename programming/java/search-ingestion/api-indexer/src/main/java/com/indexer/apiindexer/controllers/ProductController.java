@@ -4,24 +4,27 @@ import com.indexer.apiindexer.dtos.ProductRequestDTO;
 import com.indexer.apiindexer.dtos.ProductResponseDTO;
 import com.indexer.apiindexer.models.Product;
 import com.indexer.apiindexer.repositories.ProductElasticRepository;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import lombok.AllArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.ArrayList;
 import java.util.Optional;
 import java.util.UUID;
 
 @Component
 @RestController
-@RequiredArgsConstructor
-@Slf4j
+@AllArgsConstructor
 @RequestMapping(value = "products")
 public class ProductController {
-    private final ProductElasticRepository productElasticRepository;
+    private static final Logger logger = LoggerFactory.getLogger(ProductController.class);
+
+    public final ProductElasticRepository productElasticRepository;
 
     private ProductResponseDTO convertProductModelToResponseDto(final Product product) {
         return new ProductResponseDTO(product.getUuid(), product.getTitle(), product.getDescription());
@@ -30,7 +33,7 @@ public class ProductController {
     public ResponseEntity<ProductResponseDTO> getByUUID(@PathVariable("uuid") String uuid) {
         final Optional<Product> data = this.productElasticRepository.get(uuid);
         if(data.isEmpty()) {
-            log.info("Product uuid:{} not found", uuid);
+            logger.info("Product uuid:{} not found", uuid);
             return new ResponseEntity(HttpStatus.NOT_FOUND);
         }
 
@@ -44,11 +47,26 @@ public class ProductController {
             @RequestBody ProductRequestDTO data
     ){
         final String uuid = UUID.randomUUID().toString();
-        log.info("Creating product uuid:{} with data:{}", uuid, data.toString());
+        logger.info("Creating product uuid:{} with data:{}", uuid, data.toString());
         final Product product = new Product(uuid, data.getTitle(), data.getDescription());
         final boolean success = this.productElasticRepository.create(uuid, product);
         if(success)
             return new ResponseEntity<>(this.convertProductModelToResponseDto(product), HttpStatus.CREATED);
         return new ResponseEntity(HttpStatus.BAD_GATEWAY);
+    }
+
+    @GetMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<ArrayList<ProductResponseDTO>> searchProducts(@RequestParam String title){
+        logger.info("Searching product with title {}", title);
+        final ArrayList<Product> products = this.productElasticRepository.searchByTitle(title);
+        if(products.isEmpty()) {
+            logger.info("Product title:{} not found", title);
+            return new ResponseEntity(HttpStatus.NOT_FOUND);
+        }
+        ArrayList<ProductResponseDTO> productResponses = new ArrayList<>();
+        for(Product product: products){
+            productResponses.add(this.convertProductModelToResponseDto(product));
+        }
+        return new ResponseEntity<>(productResponses, HttpStatus.OK);
     }
 }

@@ -9,13 +9,12 @@ import co.elastic.clients.elasticsearch.core.SearchResponse;
 import co.elastic.clients.elasticsearch.core.search.Hit;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.indexer.apiindexer.configs.ElasticSearchConfig;
 import com.indexer.apiindexer.models.Product;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
-import com.indexer.apiindexer.configs.ElasticSearchConfig;
 
-import javax.swing.text.html.Option;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Optional;
@@ -62,5 +61,23 @@ public class ProductElasticRepository implements ElasticSearch<Product> {
             log.error("Failed get uuid:{} error:{}", uuid, ex.getMessage());
         }
         return Optional.empty();
+    }
+    
+    @Override
+    public ArrayList<Product> searchByTitle(final String title) {
+        ArrayList<Product> products = new ArrayList<>();
+        try {
+            SearchResponse<ObjectNode> response = this.esClient.search(s -> s
+                            .index("products")
+                            .query(q -> q.match(t -> t.field("title").query(title))),
+                    ObjectNode.class
+            );
+            for (Hit<ObjectNode> hit: response.hits().hits()) {
+                products.add(mapper.readValue(hit.source().toString(), Product.class));
+            }
+        } catch (ElasticsearchException | IOException ex) {
+            log.error("Failed search title:{} error:{}", title, ex.getMessage());
+        }
+        return products;
     }
 }
