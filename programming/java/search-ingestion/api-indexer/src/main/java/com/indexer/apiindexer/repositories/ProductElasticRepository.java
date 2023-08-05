@@ -63,4 +63,22 @@ public class ProductElasticRepository implements ElasticSearch<Product> {
         }
         return Optional.empty();
     }
+    
+    @Override
+    public ArrayList<Product> searchByTitle(final String title) {
+        ArrayList<Product> products = new ArrayList<>();
+        try {
+            SearchResponse<ObjectNode> response = this.esClient.search(s -> s
+                            .index("products")
+                            .query(q -> q.match(t -> t.field("title").query(title))),
+                    ObjectNode.class
+            );
+            for (Hit<ObjectNode> hit: response.hits().hits()) {
+                products.add(mapper.readValue(hit.source().toString(), Product.class));
+            }
+        } catch (ElasticsearchException | IOException ex) {
+            log.error("Failed search title:{} error:{}", title, ex.getMessage());
+        }
+        return products;
+    }
 }
